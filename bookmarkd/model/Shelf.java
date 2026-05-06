@@ -21,7 +21,9 @@ public class Shelf {
     }
 
     public void addBook(Book book) {
-        books.add(book);
+        if (!books.contains(book)) {
+            books.add(book);
+        }
     }
 
     public void removeBook(Book book) {
@@ -29,7 +31,11 @@ public class Shelf {
     }
 
     public void reorder(Book book, int newPosition) {
-        if (!books.contains(book) || newPosition < 0 || newPosition >= books.size()) {
+        if (!books.contains(book)) {
+            return;
+        }
+
+        if (newPosition < 0 || newPosition >= books.size()) {
             return;
         }
 
@@ -37,11 +43,27 @@ public class Shelf {
         books.add(newPosition, book);
     }
 
+    public String getShelfId() {
+        return shelfId;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
     public String getName() {
         return name;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
     public List<Book> getBooks() {
         return books;
+    }
+
+    public boolean isPublic() {
+        return isPublic;
     }
 }

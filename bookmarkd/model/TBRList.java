@@ -12,7 +12,9 @@ public class TBRList {
     }
 
     public void add(Book book) {
-        books.add(book);
+        if (!books.contains(book)) {
+            books.add(book);
+        }
     }
 
     public void remove(Book book) {
@@ -20,7 +22,11 @@ public class TBRList {
     }
 
     public void prioritize(Book book, int position) {
-        if (!books.contains(book) || position < 0 || position >= books.size()) {
+        if (!books.contains(book)) {
+            return;
+        }
+
+        if (position < 0 || position >= books.size()) {
             return;
         }
 
@@ -30,5 +36,9 @@ public class TBRList {
 
     public LinkedList<Book> getBooks() {
         return books;
+    }
+
+    public boolean isEmpty() {
+        return books.isEmpty();
     }
 }

@@ -19,6 +19,8 @@ public class Book {
         this.author = author;
         this.isbn = isbn;
         this.genre = genre;
+        this.coverUrl = "";
+        this.description = "";
         this.logEntries = new ArrayList<>();
     }
 
@@ -43,11 +45,36 @@ public class Book {
         return logEntries;
     }
 
+    public String getBookId() {
+        return bookId;
+    }
+
     public String getTitle() {
         return title;
     }
 
     public String getAuthor() {
         return author;
+    }
+
+    public String getIsbn() {
+        return isbn;
+    }
+
+    public String getGenre() {
+        return genre;
+    }
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    @Override
+    public String toString() {
+        return title + " by " + author + " (ISBN: " + isbn + ")";
     }
 }
