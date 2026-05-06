@@ -1,3 +1,4 @@
+package bookmarkd;
 import bookmarkd.controller.AppController;
 
 public class Main {

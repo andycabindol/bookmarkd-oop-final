@@ -1,3 +1,5 @@
+package bookmarkd.controller;
+
 import bookmarkd.model.Book;
 import bookmarkd.model.User;
 import bookmarkd.service.BookService;
