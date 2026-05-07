@@ -26,7 +26,7 @@ public class User {
         this.following = new ArrayList<>();
         this.logEntries = new ArrayList<>();
         this.shelves = new ArrayList<>();
-        this.tbrList = new TBRList(this);
+        this.tbrList = new TBRList();
     }
 
     public void follow(User user) {

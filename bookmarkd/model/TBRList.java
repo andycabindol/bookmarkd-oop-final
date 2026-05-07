@@ -1,28 +1,27 @@
 package bookmarkd.model;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TBRList {
-    private User owner;
-    private LinkedList<Book> books;
+    private List<Book> books;
 
-    public TBRList(User owner) {
-        this.owner = owner;
-        this.books = new LinkedList<>();
+    public TBRList() {
+        this.books = new ArrayList<>();
     }
 
-    public void add(Book book) {
-        if (!books.contains(book)) {
+    public void addBook(Book book) {
+        if (book != null && !books.contains(book)) {
             books.add(book);
         }
     }
 
-    public void remove(Book book) {
+    public void removeBook(Book book) {
         books.remove(book);
     }
 
-    public void prioritize(Book book, int position) {
-        if (!books.contains(book)) {
+    public void prioritizeBook(Book book, int position) {
+        if (book == null || !books.contains(book)) {
             return;
         }
 
@@ -34,7 +33,7 @@ public class TBRList {
         books.add(position, book);
     }
 
-    public LinkedList<Book> getBooks() {
+    public List<Book> getBooks() {
         return books;
     }
 

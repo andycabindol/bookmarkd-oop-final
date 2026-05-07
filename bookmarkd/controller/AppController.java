@@ -1,26 +1,25 @@
 package bookmarkd.controller;
 
 import bookmarkd.model.Book;
+import bookmarkd.model.LogEntry;
 import bookmarkd.model.Shelf;
 import bookmarkd.model.User;
 import bookmarkd.model.Visibility;
 import bookmarkd.service.BookService;
-import bookmarkd.service.FeedService;
 import bookmarkd.service.UserService;
+
 import java.util.List;
 import java.util.Scanner;
 
 public class AppController {
     private BookService bookService;
     private UserService userService;
-    private FeedService feedService;
     private Scanner scanner;
     private User currentUser;
 
     public AppController() {
         this.bookService = new BookService();
         this.userService = new UserService();
-        this.feedService = new FeedService();
         this.scanner = new Scanner(System.in);
         seedData();
     }
@@ -32,8 +31,14 @@ public class AppController {
         bookService.addBook(new Book("b4", "Atomic Habits", "James Clear", "9780004", "Self Help"));
         bookService.addBook(new Book("b5", "Norwegian Wood", "Haruki Murakami", "9780005", "Literary Fiction"));
 
-        currentUser = userService.registerUser("alice", "alice@email.com", "hash123");
-        userService.registerUser("bob", "bob@email.com", "hash456");
+        currentUser = userService.registerUser("alice", "alice@email.com");
+        User bob = userService.registerUser("bob", "bob@email.com");
+
+        // Demo data so the feed/profile features are easier to test
+        Book dune = bookService.searchBook("Dune");
+        if (dune != null) {
+            bob.logBook(dune, 5, "Amazing worldbuilding.", Visibility.PUBLIC);
+        }
     }
 
     public void start() {
@@ -54,7 +59,7 @@ public class AppController {
                     searchBooks();
                     break;
                 case "4":
-                    logBook();
+                    logReadBook();
                     break;
                 case "5":
                     addBookToTBR();
@@ -81,9 +86,12 @@ public class AppController {
                     followUser();
                     break;
                 case "13":
-                    feedService.printFeed(currentUser);
+                    viewFeed();
                     break;
                 case "14":
+                    viewProfile();
+                    break;
+                case "15":
                     running = false;
                     System.out.println("Goodbye!");
                     break;
@@ -99,7 +107,7 @@ public class AppController {
         System.out.println("1. Register user");
         System.out.println("2. Switch user");
         System.out.println("3. Search books");
-        System.out.println("4. Log a book");
+        System.out.println("4. Log a read book");
         System.out.println("5. Add book to TBR");
         System.out.println("6. View my TBR");
         System.out.println("7. Remove book from TBR");
@@ -108,8 +116,9 @@ public class AppController {
         System.out.println("10. Add book to shelf");
         System.out.println("11. View my shelves");
         System.out.println("12. Follow user");
-        System.out.println("13. View feed");
-        System.out.println("14. Exit");
+        System.out.println("13. View activity feed");
+        System.out.println("14. View user profile");
+        System.out.println("15. Exit");
         System.out.print("Choose an option: ");
     }
 
@@ -120,7 +129,7 @@ public class AppController {
         System.out.print("Email: ");
         String email = scanner.nextLine();
 
-        User user = userService.registerUser(username, email, "defaultHash");
+        User user = userService.registerUser(username, email);
         currentUser = user;
 
         System.out.println("Registered and switched to user: " + user.getUsername());
@@ -142,7 +151,7 @@ public class AppController {
     }
 
     private void searchBooks() {
-        System.out.print("Search query: ");
+        System.out.print("Search by title, author, ISBN, or genre: ");
         String query = scanner.nextLine();
 
         List<Book> results = bookService.searchBooks(query);
@@ -158,7 +167,7 @@ public class AppController {
         }
     }
 
-    private void logBook() {
+    private void logReadBook() {
         System.out.print("Book title or ISBN: ");
         String query = scanner.nextLine();
 
@@ -171,13 +180,14 @@ public class AppController {
 
         int rating = readRating();
 
-        System.out.print("Review: ");
-        String review = scanner.nextLine();
+        System.out.print("Review, optional: ");
+        String reviewText = scanner.nextLine();
 
         Visibility visibility = readVisibility();
 
-        currentUser.logBook(book, rating, review, visibility);
-        System.out.println("Logged book: " + book.getTitle());
+        LogEntry entry = currentUser.logBook(book, rating, reviewText, visibility);
+
+        System.out.println("Logged book: " + entry.getBook().getTitle());
     }
 
     private int readRating() {
@@ -194,7 +204,7 @@ public class AppController {
 
                 System.out.println("Rating must be between 1 and 5.");
             } catch (NumberFormatException e) {
-                System.out.println("Please enter a number.");
+                System.out.println("Please enter a valid number.");
             }
         }
     }
@@ -233,7 +243,7 @@ public class AppController {
             return;
         }
 
-        currentUser.getTBRList().add(book);
+        currentUser.getTBRList().addBook(book);
         System.out.println("Added to TBR: " + book.getTitle());
     }
 
@@ -263,7 +273,7 @@ public class AppController {
             return;
         }
 
-        currentUser.getTBRList().remove(book);
+        currentUser.getTBRList().removeBook(book);
         System.out.println("Removed from TBR: " + book.getTitle());
     }
 
@@ -283,7 +293,7 @@ public class AppController {
 
         try {
             int position = Integer.parseInt(input) - 1;
-            currentUser.getTBRList().prioritize(book, position);
+            currentUser.getTBRList().prioritizeBook(book, position);
             System.out.println("Updated TBR priority.");
         } catch (NumberFormatException e) {
             System.out.println("Invalid position.");
@@ -300,8 +310,7 @@ public class AppController {
         System.out.print("Public shelf? yes/no: ");
         String answer = scanner.nextLine();
 
-        boolean isPublic = answer.equalsIgnoreCase("yes")
-                || answer.equalsIgnoreCase("y");
+        boolean isPublic = answer.equalsIgnoreCase("yes") || answer.equalsIgnoreCase("y");
 
         Shelf shelf = currentUser.createShelf(name, description, isPublic);
 
@@ -348,10 +357,13 @@ public class AppController {
             System.out.println("Description: " + shelf.getDescription());
             System.out.println("Public: " + shelf.isPublic());
 
-            if (shelf.getBooks().isEmpty()) {
+            List<Book> books = shelf.getBooks();
+
+            if (books.isEmpty()) {
                 System.out.println("No books in this shelf.");
             } else {
-                for (Book book : shelf.getBooks()) {
+                System.out.println("Books:");
+                for (Book book : books) {
                     System.out.println("- " + book);
                 }
             }
@@ -369,7 +381,94 @@ public class AppController {
             return;
         }
 
-        userService.followUser(currentUser, targetUser);
+        currentUser.follow(targetUser);
         System.out.println(currentUser.getUsername() + " followed " + targetUser.getUsername());
+    }
+
+    private void viewFeed() {
+        List<LogEntry> feed = currentUser.getFeed();
+
+        System.out.println("\n=== Activity Feed for " + currentUser.getUsername() + " ===");
+
+        if (feed.isEmpty()) {
+            System.out.println("No activity yet. Try following another user first.");
+            return;
+        }
+
+        boolean hasVisibleEntry = false;
+
+        for (LogEntry entry : feed) {
+            if (entry.getVisibility() == Visibility.PRIVATE) {
+                continue;
+            }
+
+            hasVisibleEntry = true;
+
+            System.out.println(entry.getUser().getUsername()
+                    + " read "
+                    + entry.getBook().getTitle()
+                    + " and rated it "
+                    + entry.getRating()
+                    + "/5");
+
+            if (!entry.getReviewText().isEmpty()) {
+                System.out.println("Review: " + entry.getReviewText());
+            }
+
+            System.out.println("Visibility: " + entry.getVisibility());
+            System.out.println();
+        }
+
+        if (!hasVisibleEntry) {
+            System.out.println("No visible activity.");
+        }
+    }
+
+    private void viewProfile() {
+        System.out.print("Username to view, or press Enter for your own profile: ");
+        String username = scanner.nextLine();
+
+        User user;
+
+        if (username.isEmpty()) {
+            user = currentUser;
+        } else {
+            user = userService.searchUser(username);
+        }
+
+        if (user == null) {
+            System.out.println("User not found.");
+            return;
+        }
+
+        System.out.println("\n=== Profile: " + user.getUsername() + " ===");
+        System.out.println("Email: " + user.getEmail());
+        System.out.println("Followers: " + user.getFollowers().size());
+        System.out.println("Following: " + user.getFollowing().size());
+
+        System.out.println("\nRead Books:");
+        if (user.getLogEntries().isEmpty()) {
+            System.out.println("No logged books yet.");
+        } else {
+            for (LogEntry entry : user.getLogEntries()) {
+                if (entry.getVisibility() != Visibility.PRIVATE || user == currentUser) {
+                    System.out.println("- " + entry.getBook().getTitle()
+                            + " | Rating: " + entry.getRating()
+                            + "/5 | Review: " + entry.getReviewText());
+                }
+            }
+        }
+
+        System.out.println("\nShelves:");
+        if (user.getShelves().isEmpty()) {
+            System.out.println("No shelves yet.");
+        } else {
+            for (Shelf shelf : user.getShelves()) {
+                if (shelf.isPublic() || user == currentUser) {
+                    System.out.println("- " + shelf.getName()
+                            + " (" + shelf.getBooks().size() + " books)");
+                }
+            }
+        }
     }
 }

@@ -1,7 +1,6 @@
 package bookmarkd.service;
 
 import bookmarkd.model.User;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,14 +11,12 @@ public class UserService {
         this.users = new ArrayList<>();
     }
 
-    public User registerUser(String username, String email, String passwordHash) {
+    public User registerUser(String username, String email) {
         User user = new User(
-                "user-" + (users.size() + 1),
-                username,
-                email,
-                passwordHash
-        );
-
+            "user-" + (users.size() + 1),
+            username,
+            email,
+            "");
         users.add(user);
         return user;
     }
