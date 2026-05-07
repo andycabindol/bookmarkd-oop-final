@@ -7,7 +7,6 @@ import bookmarkd.model.User;
 import bookmarkd.model.Visibility;
 import bookmarkd.service.BookService;
 import bookmarkd.service.UserService;
-
 import java.util.List;
 import java.util.Scanner;
 
@@ -381,7 +380,7 @@ public class AppController {
             return;
         }
 
-        currentUser.follow(targetUser);
+        userService.followUser(currentUser, targetUser);
         System.out.println(currentUser.getUsername() + " followed " + targetUser.getUsername());
     }
 
