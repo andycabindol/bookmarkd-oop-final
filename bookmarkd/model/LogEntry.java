@@ -1,10 +1,9 @@
 package bookmarkd.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-public class LogEntry {
-    private String entryId;
-    private User user;
+public class LogEntry extends Content {
     private Book book;
     private int rating;
     private String reviewText;
@@ -14,8 +13,7 @@ public class LogEntry {
 
     public LogEntry(String entryId, User user, Book book, int rating, String reviewText,
                     LocalDate dateRead, Visibility visibility) {
-        this.entryId = entryId;
-        this.user = user;
+        super(entryId, user, LocalDateTime.now());
         this.book = book;
         this.rating = rating;
         this.reviewText = reviewText;
@@ -24,10 +22,12 @@ public class LogEntry {
         this.spoiler = false;
     }
 
+    @Override
     public void edit(String newText) {
         this.reviewText = newText;
     }
 
+    @Override
     public void delete() {
         this.reviewText = "";
         this.rating = 0;
@@ -38,11 +38,11 @@ public class LogEntry {
     }
 
     public String getEntryId() {
-        return entryId;
+        return id;
     }
 
     public User getUser() {
-        return user;
+        return author;
     }
 
     public Book getBook() {

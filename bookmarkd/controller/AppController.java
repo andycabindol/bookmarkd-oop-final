@@ -5,36 +5,38 @@ import bookmarkd.model.LogEntry;
 import bookmarkd.model.Shelf;
 import bookmarkd.model.User;
 import bookmarkd.model.Visibility;
-import bookmarkd.service.BookService;
 import bookmarkd.service.UserService;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
 
 public class AppController {
-    private BookService bookService;
+    private static final String DIVIDER = "==============================================================";
     private UserService userService;
     private Scanner scanner;
     private User currentUser;
+    private String lastActionStatus;
 
     public AppController() {
-        this.bookService = new BookService();
         this.userService = new UserService();
         this.scanner = new Scanner(System.in);
+        this.lastActionStatus = "Ready.";
         seedData();
     }
 
     private void seedData() {
-        bookService.addBook(new Book("b1", "The Hobbit", "J.R.R. Tolkien", "9780001", "Fantasy"));
-        bookService.addBook(new Book("b2", "Dune", "Frank Herbert", "9780002", "Science Fiction"));
-        bookService.addBook(new Book("b3", "Pride and Prejudice", "Jane Austen", "9780003", "Romance"));
-        bookService.addBook(new Book("b4", "Atomic Habits", "James Clear", "9780004", "Self Help"));
-        bookService.addBook(new Book("b5", "Norwegian Wood", "Haruki Murakami", "9780005", "Literary Fiction"));
+        userService.addBook(new Book("b1", "The Hobbit", "J.R.R. Tolkien", "9780001", "Fantasy"));
+        userService.addBook(new Book("b2", "Dune", "Frank Herbert", "9780002", "Science Fiction"));
+        userService.addBook(new Book("b3", "Pride and Prejudice", "Jane Austen", "9780003", "Romance"));
+        userService.addBook(new Book("b4", "Atomic Habits", "James Clear", "9780004", "Self Help"));
+        userService.addBook(new Book("b5", "Norwegian Wood", "Haruki Murakami", "9780005", "Literary Fiction"));
 
-        currentUser = userService.registerUser("alice", "alice@email.com");
-        User bob = userService.registerUser("bob", "bob@email.com");
+        currentUser = userService.registerUser("alice", "alice@email.com", "alice123");
+        User bob = userService.registerUser("bob", "bob@email.com", "bob123");
 
         // Demo data so the feed/profile features are easier to test
-        Book dune = bookService.searchBook("Dune");
+        Book dune = userService.searchBook("Dune");
         if (dune != null) {
             bob.logBook(dune, 5, "Amazing worldbuilding.", Visibility.PUBLIC);
         }
@@ -100,6 +102,18 @@ public class AppController {
         }
     }
 
+    private void printWelcome() {
+        System.out.println(DIVIDER);
+        System.out.println(" ____              _                        _    _ ");
+        System.out.println("|  _ \\            | |                      | |  | |");
+        System.out.println("| |_) | ___   ___ | | ___ __ ___   __ _ _ __| | _| |");
+        System.out.println("|  _ < / _ \\ / _ \\| |/ / '_ ` _ \\ / _` | '__| |/ / |");
+        System.out.println("| |_) | (_) | (_) |   <| | | | | | (_| | |  |   <|_|");
+        System.out.println("|____/ \\___/ \\___/|_|\\_\\_| |_| |_|\\__,_|_|  |_|\\_(_)");
+        System.out.println("Social Book Cataloging CLI");
+        System.out.println(DIVIDER);
+    }
+
     private void printMenu() {
         System.out.println("\n=== Bookmarkd ===");
         System.out.println("Current user: " + currentUser.getUsername());
@@ -125,13 +139,39 @@ public class AppController {
         System.out.print("Username: ");
         String username = scanner.nextLine();
 
-        System.out.print("Email: ");
-        String email = scanner.nextLine();
+        String email = readValidEmail();
 
-        User user = userService.registerUser(username, email);
-        currentUser = user;
+        System.out.print("Password: ");
+        String password = scanner.nextLine();
 
-        System.out.println("Registered and switched to user: " + user.getUsername());
+        try {
+            User user = userService.registerUser(username, email, password);
+            currentUser = user;
+            System.out.println("Registered and switched to user: " + user.getUsername());
+            lastActionStatus = "Registered user '" + user.getUsername() + "'.";
+        } catch (IllegalArgumentException e) {
+            System.out.println("Could not register user: " + e.getMessage());
+            lastActionStatus = "Registration failed: " + e.getMessage();
+        }
+    }
+
+    private String readValidEmail() {
+        while (true) {
+            System.out.print("Email: ");
+            String email = scanner.nextLine();
+
+            if (!userService.isEmailFormatValid(email)) {
+                System.out.println("Invalid email format. Please try again.");
+                continue;
+            }
+
+            if (userService.isEmailTaken(email)) {
+                System.out.println("Email is already in use. Please try another.");
+                continue;
+            }
+
+            return email;
+        }
     }
 
     private void switchUser() {
@@ -142,21 +182,24 @@ public class AppController {
 
         if (user == null) {
             System.out.println("User not found.");
+            lastActionStatus = "Switch failed: user not found.";
             return;
         }
 
         currentUser = user;
         System.out.println("Switched to user: " + currentUser.getUsername());
+        lastActionStatus = "Switched to '" + currentUser.getUsername() + "'.";
     }
 
     private void searchBooks() {
         System.out.print("Search by title, author, ISBN, or genre: ");
         String query = scanner.nextLine();
 
-        List<Book> results = bookService.searchBooks(query);
+        List<Book> results = userService.searchBooks(query);
 
         if (results.isEmpty()) {
             System.out.println("No books found.");
+            lastActionStatus = "Search returned no books for '" + query + "'.";
             return;
         }
 
@@ -164,16 +207,18 @@ public class AppController {
         for (Book book : results) {
             System.out.println("- " + book);
         }
+        lastActionStatus = "Found " + results.size() + " book(s) for '" + query + "'.";
     }
 
     private void logReadBook() {
         System.out.print("Book title or ISBN: ");
         String query = scanner.nextLine();
 
-        Book book = bookService.searchBook(query);
+        Book book = chooseBookForLogging(query);
 
         if (book == null) {
             System.out.println("Book not found.");
+            lastActionStatus = "Log canceled or no valid book selected.";
             return;
         }
 
@@ -187,7 +232,110 @@ public class AppController {
         LogEntry entry = currentUser.logBook(book, rating, reviewText, visibility);
 
         System.out.println("Logged book: " + entry.getBook().getTitle());
+        lastActionStatus = "Logged '" + entry.getBook().getTitle() + "' with rating " + entry.getRating() + "/5.";
     }
+
+    private Book chooseBookForLogging(String query) {
+        Book exactMatch = userService.searchBook(query);
+        if (exactMatch != null) {
+            return exactMatch;
+        }
+
+        List<Book> candidates = userService.searchBooks(query);
+        if (candidates.isEmpty()) {
+            candidates = getFuzzyBookCandidates(query);
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        System.out.println("\nNo exact match found. Did you mean:");
+        for (int i = 0; i < candidates.size(); i++) {
+            System.out.println((i + 1) + ". " + candidates.get(i));
+        }
+        System.out.println("0. Cancel");
+
+        while (true) {
+            System.out.print("Choose a book number: ");
+            String input = scanner.nextLine();
+
+            try {
+                int choice = Integer.parseInt(input);
+                if (choice == 0) {
+                    return null;
+                }
+                if (choice >= 1 && choice <= candidates.size()) {
+                    return candidates.get(choice - 1);
+                }
+                System.out.println("Please choose a valid number.");
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a number.");
+            }
+        }
+    }
+
+    private List<Book> getFuzzyBookCandidates(String query) {
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase();
+        if (normalizedQuery.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Book> allBooks = userService.getAllBooks();
+        List<BookMatch> matches = new ArrayList<>();
+
+        for (Book book : allBooks) {
+            String title = book.getTitle().toLowerCase();
+            String author = book.getAuthor().toLowerCase();
+            String isbn = book.getIsbn().toLowerCase();
+
+            int titleScore = fuzzyScore(normalizedQuery, title);
+            int authorScore = fuzzyScore(normalizedQuery, author);
+            int isbnScore = fuzzyScore(normalizedQuery, isbn);
+            int bestScore = Math.max(titleScore, Math.max(authorScore, isbnScore));
+
+            if (bestScore > 0) {
+                matches.add(new BookMatch(book, bestScore));
+            }
+        }
+
+        matches.sort(Comparator.comparingInt(BookMatch::score).reversed());
+        List<Book> result = new ArrayList<>();
+        int limit = Math.min(5, matches.size());
+        for (int i = 0; i < limit; i++) {
+            result.add(matches.get(i).book());
+        }
+        return result;
+    }
+
+    private int fuzzyScore(String query, String target) {
+        if (target.contains(query)) {
+            return 100;
+        }
+
+        int subsequenceLength = subsequenceLength(query, target);
+        if (subsequenceLength == 0) {
+            return 0;
+        }
+
+        // Higher score for better character-order overlap.
+        return (subsequenceLength * 100) / query.length();
+    }
+
+    private int subsequenceLength(String query, String target) {
+        int i = 0;
+        int j = 0;
+
+        while (i < query.length() && j < target.length()) {
+            if (query.charAt(i) == target.charAt(j)) {
+                i++;
+            }
+            j++;
+        }
+
+        return i;
+    }
+
+    private record BookMatch(Book book, int score) {}
 
     private int readRating() {
         while (true) {
@@ -235,15 +383,17 @@ public class AppController {
         System.out.print("Book title or ISBN: ");
         String query = scanner.nextLine();
 
-        Book book = bookService.searchBook(query);
+        Book book = userService.searchBook(query);
 
         if (book == null) {
             System.out.println("Book not found.");
+            lastActionStatus = "Add to TBR failed: book not found.";
             return;
         }
 
         currentUser.getTBRList().addBook(book);
         System.out.println("Added to TBR: " + book.getTitle());
+        lastActionStatus = "Added '" + book.getTitle() + "' to TBR.";
     }
 
     private void viewTBR() {
@@ -265,25 +415,28 @@ public class AppController {
         System.out.print("Book title or ISBN to remove: ");
         String query = scanner.nextLine();
 
-        Book book = bookService.searchBook(query);
+        Book book = userService.searchBook(query);
 
         if (book == null) {
             System.out.println("Book not found.");
+            lastActionStatus = "Remove from TBR failed: book not found.";
             return;
         }
 
         currentUser.getTBRList().removeBook(book);
         System.out.println("Removed from TBR: " + book.getTitle());
+        lastActionStatus = "Removed '" + book.getTitle() + "' from TBR.";
     }
 
     private void prioritizeTBR() {
         System.out.print("Book title or ISBN to prioritize: ");
         String query = scanner.nextLine();
 
-        Book book = bookService.searchBook(query);
+        Book book = userService.searchBook(query);
 
         if (book == null) {
             System.out.println("Book not found.");
+            lastActionStatus = "Prioritize failed: book not found.";
             return;
         }
 
@@ -294,8 +447,10 @@ public class AppController {
             int position = Integer.parseInt(input) - 1;
             currentUser.getTBRList().prioritizeBook(book, position);
             System.out.println("Updated TBR priority.");
+            lastActionStatus = "Updated TBR priority for '" + book.getTitle() + "'.";
         } catch (NumberFormatException e) {
             System.out.println("Invalid position.");
+            lastActionStatus = "Prioritize failed: invalid position.";
         }
     }
 
@@ -314,6 +469,7 @@ public class AppController {
         Shelf shelf = currentUser.createShelf(name, description, isPublic);
 
         System.out.println("Created shelf: " + shelf.getName());
+        lastActionStatus = "Created shelf '" + shelf.getName() + "'.";
     }
 
     private void addBookToShelf() {
@@ -324,21 +480,24 @@ public class AppController {
 
         if (shelf == null) {
             System.out.println("Shelf not found.");
+            lastActionStatus = "Add to shelf failed: shelf not found.";
             return;
         }
 
         System.out.print("Book title or ISBN: ");
         String query = scanner.nextLine();
 
-        Book book = bookService.searchBook(query);
+        Book book = userService.searchBook(query);
 
         if (book == null) {
             System.out.println("Book not found.");
+            lastActionStatus = "Add to shelf failed: book not found.";
             return;
         }
 
         shelf.addBook(book);
         System.out.println("Added " + book.getTitle() + " to shelf " + shelf.getName());
+        lastActionStatus = "Added '" + book.getTitle() + "' to shelf '" + shelf.getName() + "'.";
     }
 
     private void viewShelves() {
@@ -348,6 +507,7 @@ public class AppController {
 
         if (shelves.isEmpty()) {
             System.out.println("No shelves yet.");
+            lastActionStatus = "No shelves to display.";
             return;
         }
 
@@ -367,6 +527,7 @@ public class AppController {
                 }
             }
         }
+        lastActionStatus = "Displayed " + shelves.size() + " shelf/s.";
     }
 
     private void followUser() {
@@ -377,11 +538,13 @@ public class AppController {
 
         if (targetUser == null) {
             System.out.println("User not found.");
+            lastActionStatus = "Follow failed: user not found.";
             return;
         }
 
         userService.followUser(currentUser, targetUser);
         System.out.println(currentUser.getUsername() + " followed " + targetUser.getUsername());
+        lastActionStatus = "Now following '" + targetUser.getUsername() + "'.";
     }
 
     private void viewFeed() {
@@ -391,13 +554,14 @@ public class AppController {
 
         if (feed.isEmpty()) {
             System.out.println("No activity yet. Try following another user first.");
+            lastActionStatus = "Feed is empty.";
             return;
         }
 
         boolean hasVisibleEntry = false;
 
         for (LogEntry entry : feed) {
-            if (entry.getVisibility() == Visibility.PRIVATE) {
+            if (!currentUser.canViewLogEntry(entry)) {
                 continue;
             }
 
@@ -420,7 +584,10 @@ public class AppController {
 
         if (!hasVisibleEntry) {
             System.out.println("No visible activity.");
+            lastActionStatus = "Feed has no visible entries.";
+            return;
         }
+        lastActionStatus = "Displayed activity feed (" + feed.size() + " total item candidates).";
     }
 
     private void viewProfile() {
@@ -437,6 +604,7 @@ public class AppController {
 
         if (user == null) {
             System.out.println("User not found.");
+            lastActionStatus = "Profile lookup failed: user not found.";
             return;
         }
 
@@ -450,7 +618,7 @@ public class AppController {
             System.out.println("No logged books yet.");
         } else {
             for (LogEntry entry : user.getLogEntries()) {
-                if (entry.getVisibility() != Visibility.PRIVATE || user == currentUser) {
+                if (currentUser.canViewLogEntry(entry)) {
                     System.out.println("- " + entry.getBook().getTitle()
                             + " | Rating: " + entry.getRating()
                             + "/5 | Review: " + entry.getReviewText());
@@ -469,5 +637,6 @@ public class AppController {
                 }
             }
         }
+        lastActionStatus = "Viewed profile for '" + user.getUsername() + "'.";
     }
 }

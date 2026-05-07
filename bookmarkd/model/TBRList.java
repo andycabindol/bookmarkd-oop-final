@@ -1,13 +1,15 @@
 package bookmarkd.model;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class TBRList {
+    private User owner;
     private List<Book> books;
 
-    public TBRList() {
-        this.books = new ArrayList<>();
+    public TBRList(User owner) {
+        this.owner = owner;
+        this.books = new LinkedList<>();
     }
 
     public void addBook(Book book) {
@@ -35,6 +37,10 @@ public class TBRList {
 
     public List<Book> getBooks() {
         return books;
+    }
+
+    public User getOwner() {
+        return owner;
     }
 
     public boolean isEmpty() {

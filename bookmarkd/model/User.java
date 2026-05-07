@@ -2,6 +2,7 @@ package bookmarkd.model;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class User {
@@ -26,7 +27,7 @@ public class User {
         this.following = new ArrayList<>();
         this.logEntries = new ArrayList<>();
         this.shelves = new ArrayList<>();
-        this.tbrList = new TBRList();
+        this.tbrList = new TBRList(this);
     }
 
     public void follow(User user) {
@@ -93,7 +94,30 @@ public class User {
             feed.addAll(friend.getLogEntries());
         }
 
+        feed.sort(Comparator.comparing(LogEntry::getDateRead).reversed());
         return feed;
+    }
+
+    public boolean canViewLogEntry(LogEntry entry) {
+        if (entry == null) {
+            return false;
+        }
+
+        User author = entry.getUser();
+        if (author == this) {
+            return true;
+        }
+
+        Visibility visibility = entry.getVisibility();
+        if (visibility == Visibility.PUBLIC) {
+            return true;
+        }
+
+        if (visibility == Visibility.FRIENDS_ONLY) {
+            return following.contains(author);
+        }
+
+        return false;
     }
 
     public TBRList getTBRList() {
@@ -126,5 +150,9 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
     }
 }
